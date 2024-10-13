@@ -1,0 +1,15 @@
+# docker-compose.yml
+
+services:
+  discord-monitor:
+    build: .
+    container_name: discord_monitorprod
+    environment:
+      - CHANNEL_IDS=${CHANNEL_IDS}
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    volumes:
+      - ./last_message.json:/app/last_message.json
+      - ./.env:/app/.env
+    restart: always

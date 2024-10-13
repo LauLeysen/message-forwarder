@@ -1,0 +1,6 @@
+## env file example
+
+DISCORD_TOKEN=
+CHANNEL_ID=
+TELEGRAM_TOKEN=
+TELEGRAM_CHAT_ID=
