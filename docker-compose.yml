@@ -1,5 +1,3 @@
-# docker-compose.yml
-
 services:
   discord-monitor:
     build: .
@@ -10,6 +8,6 @@ services:
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     volumes:
-      - ./last_message.json:/app/last_message.json
+      - ./last_messages/:/app/last_messages/:rw  # Map the directory for multiple files
       - ./.env:/app/.env
     restart: always

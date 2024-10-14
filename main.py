@@ -44,18 +44,44 @@ headers = {"Authorization": token}
 
 
 def load_last_message(channelid):
-    last_message_file = f'last_message_{channelid}.json'
-    if os.path.exists(last_message_file):
-        with open(last_message_file, 'r') as file:
-            data = json.load(file)
-            return data.get('last_message_id')
-    return None
+    last_message_file = os.path.join("/app/last_messages", f'last_message_{channelid}.json')
+
+    log.debug(f"Loading last message from {last_message_file}")
+    
+    # Open the file in 'r+' mode to avoid truncating it
+    try:
+        if not os.path.exists(last_message_file):
+            # Create the file if it doesn't exist yet
+            with open(last_message_file, 'w') as file:
+                json.dump({'last_message_id': None}, file)
+
+        with open(last_message_file, 'r+') as file:
+            try:
+                file.seek(0)  # Move to the start of the file
+                data = json.load(file)
+                return data.get('last_message_id')
+            except json.JSONDecodeError:
+                log.warning(f"No data found in {last_message_file}. File is empty or corrupted.")
+                return None
+    except Exception as e:
+        log.error(f"Error loading last message from file {last_message_file}: {e}")
+        return None
+
+
 
 
 def save_last_message(channelid, message_id):
-    last_message_file = f'last_message_{channelid}.json'
-    with open(last_message_file, 'w') as file:
-        json.dump({'last_message_id': message_id}, file)
+    last_message_file = os.path.join("/app/last_messages", f'last_message_{channelid}.json')
+
+    
+    try:
+        with open(last_message_file, 'w+') as file:
+            log.debug(f"Saving new message ID {message_id} to {last_message_file}")
+            json.dump({'last_message_id': message_id}, file)
+        log.debug(f"Last message ID {message_id} saved successfully.")
+    except Exception as e:
+        log.error(f"Error saving last message to file {last_message_file}: {e}")
+
 
 
 def checkStatus(response):
@@ -85,8 +111,15 @@ def checkToken():
 
 
 def getMessages(channelid):
-    response = requests.get(f"https://discord.com/api/channels/{channelid}/messages", headers=headers)
-    return checkStatus(response)
+    try:
+        response = requests.get(f"https://discord.com/api/channels/{channelid}/messages", headers=headers)
+        return checkStatus(response)
+    except requests.exceptions.RequestException as e:
+        log.error(f"Request error occurred for channel {channelid}: {e}")
+        return None 
+    except Exception as e:
+        log.error(f"Unexpected error occurred for channel {channelid}: {e}")
+        return None
 
 
 def getChannel(channelid):
@@ -123,11 +156,11 @@ def monitorFirstMessage(channelid, channel_name):
         if isinstance(messages, list) and len(messages) > 0:
             first_message = messages[0]
             message_id = first_message['id']
+
             if last_message_id is None or message_id != last_message_id:
                 content = first_message.get('content', '')
                 original_content = content
 
-                # Build regex pattern for the filtered words
                 pattern = r'\b(?:' + '|'.join(map(re.escape, FILTER_WORDS)) + r')\b'
                 content = re.sub(pattern, '', content, flags=re.IGNORECASE).strip()
 
@@ -148,7 +181,7 @@ def monitorFirstMessage(channelid, channel_name):
             log.warning("Rate limited, waiting before retrying...")
         else:
             log.error(f"Unable to retrieve messages for channel {channel_name}.")
-        sleep(1)
+        sleep(2)
 
 
 if __name__ == "__main__":
@@ -164,7 +197,6 @@ if __name__ == "__main__":
                 threads.append(t)
             else:
                 log.error(f"Skipping channel {channelid} due to failure in retrieving channel name.")
-        # Keep the main thread alive
         try:
             while True:
                 sleep(1)
